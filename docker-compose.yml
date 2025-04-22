@@ -1,0 +1,13 @@
+
+version: '3.8'
+services:
+  crontab-editor:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - /etc/crontab:/etc/crontab
+    environment:
+      - NODE_ENV=production
+    restart: always
+    user: root
