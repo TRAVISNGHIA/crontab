@@ -1,13 +1,15 @@
+version: "3.8"
 
-version: '3.8'
 services:
-  crontab-editor:
-    build: .
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crontab-ui
     ports:
-      - "3000:3000"
+      - "3001:3000"
+    env_file:
+      - .env
+    restart: always
     volumes:
       - /etc/crontab:/etc/crontab
-    environment:
-      - NODE_ENV=production
-    restart: always
-    user: root

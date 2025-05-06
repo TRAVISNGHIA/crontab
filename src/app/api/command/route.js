@@ -7,9 +7,8 @@ const execPromise = util.promisify(exec);
 
 const allowedCommands = {
     'status_cron': 'systemctl status cron',
-    'list_etc': 'ls -la /etc',
     'show_crontab': 'cat /etc/crontab',
-    'syslog_tail': 'tail -n 20 /var/log/syslog',
+    'cronlog_tail': 'tail /home/nghia/hello_world.log',
 };
 
 export async function POST(req) {

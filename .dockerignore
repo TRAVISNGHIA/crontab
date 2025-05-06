@@ -1,0 +1,19 @@
+# thư mục local
+node_modules
+.next
+
+# build
+dist
+out
+
+# config chỉ dùng lúc build
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# editor, IDE
+.idea
+.webstorm
+
+# logs
+*.log

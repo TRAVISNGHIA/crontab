@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
+import { Switch } from "@/components/ui/switch"
 
 interface LineItem {
     line: string
@@ -17,15 +18,6 @@ export default function CrontabEditor() {
     const [importText, setImportText] = useState('');
     const [command, setCommand] = useState('');
     const [ commandLogs, setCommandLogs ] = useState<{ command: string, output: string }[]>([]);
-    const [,setCommandOutput] = useState('');
-
-
-    const allowedCommandList = [
-        { key: 'status_cron', label: '📄 Trạng thái cron' },
-        { key: 'list_etc', label: '📁 Liệt kê /etc' },
-        { key: 'show_crontab', label: '📜 Xem nội dung crontab' },
-        { key: 'syslog_tail', label: '📝 Xem log hệ thống' },
-    ];
 
     useEffect(() => {
         const fetchCrontab = async () => {
@@ -37,7 +29,7 @@ export default function CrontabEditor() {
                 console.error('Lỗi khi tải crontab:', err)
             }
         }
-        fetchCrontab()
+        fetchCrontab();
     }, [])
 
     const toggleLine = (index: number) => {
@@ -97,32 +89,32 @@ export default function CrontabEditor() {
         setLines(updatedLines)
     }
     const handleRun = async () => {
-        if (!command) return;
+        if (!command.trim()) return;
 
-        setCommandOutput(`> Đang chạy: ${command}\n⏳ Đang xử lý...\n`);
+        setCommandLogs(prev => [...prev, { command, output: '⏳ Đang xử lý...' }]);
 
-        const res = await fetch('/api/command', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command })
-        });
+        try {
+            const res = await fetch('/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: command.trim() })
+            });
 
-        if (!res.ok) {
-            setCommandOutput(prev => prev + `❌ Lỗi: ${res.status} - ${res.statusText}`);
-            const error = await res.text();
-            console.error('Error message from server:', error);
-            return;
+            const data = await res.json();
+
+            setCommandLogs(prev => [
+                ...prev.slice(0, -1),
+                { command, output: data.output || data.error || '❌ Không có output' },
+            ]);
+
+            setCommand('');
+        } catch (err) {
+            console.error('❌ Lỗi khi gọi API:', err);
+            setCommandLogs(prev => [
+                ...prev.slice(0, -1),
+                { command, output: '❌ Lỗi kết nối server' },
+            ]);
         }
-
-        const data = await res.json();
-        console.log("Response data:", data); // Debug để kiểm tra
-
-        const newLog = { command, output: data.output };
-
-        setCommandLogs(prevLogs => [...prevLogs, newLog]);
-
-        // Cập nhật output hiển thị
-        setCommandOutput(prev => prev + '\n' + data.output);
     };
 
     return (
@@ -134,9 +126,9 @@ export default function CrontabEditor() {
                     onChange={(e) => setImportText(e.target.value)}
                     rows={5}
                     className="w-full border p-2 font-mono text-sm rounded"
-                    placeholder="Dán crontab vào đây..."
+                    placeholder="Dán tệp crontab vào đây để phân chia dòng sao cho hợp lý "
                 />
-                <Button onClick={handleImport} className="mt-2">tải vào file</Button>
+                <Button onClick={handleImport} className="mt-2">dán tệp vào file bên dưới</Button>
             </div>
 
             <Input
@@ -166,48 +158,45 @@ export default function CrontabEditor() {
                         >
                             <td className="p-2">{index + 1}</td>
                             <td className="p-2">
-                 <textarea
-                     ref={(el) => {
-                         textAreaRefs.current[index] = el
-                         autoResize(el)
-                     }}
-                     value={line}
-                     onChange={(e) => {
-                         handleLineChange(e.target.value, index)
-                         autoResize(e.target)
-                     }}
-                     onKeyDown={(e) => {
-                         if (e.key === 'Enter' && !e.shiftKey) {
-                             e.preventDefault()
-                             const updated = [...lines]
-                             updated.splice(index + 1, 0, '')
-                             setLines(updated)
-                             setTimeout(() => {
-                                 textAreaRefs.current[index + 1]?.focus()
-                             }, 0)
-                         } else if (e.key === 'ArrowDown') {
-                             e.preventDefault()
-                             textAreaRefs.current[index + 1]?.focus()
-                         } else if (e.key === 'ArrowUp') {
-                             e.preventDefault()
-                             textAreaRefs.current[index - 1]?.focus()
-                         }
-                     }}
-                     rows={1}
-                     className="w-full font-mono text-sm border px-1 py-0.5 rounded resize-none overflow-hidden"
-                 />
+                                <textarea
+                                    ref={(el) => {
+                                        textAreaRefs.current[index] = el
+                                        autoResize(el)
+                                    }}
+                                    value={line}
+                                    onChange={(e) => {
+                                        handleLineChange(e.target.value, index)
+                                        autoResize(e.target)
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault()
+                                            const updated = [...lines]
+                                            updated.splice(index + 1, 0, '')
+                                            setLines(updated)
+                                            setTimeout(() => {
+                                                textAreaRefs.current[index + 1]?.focus()
+                                            }, 0)
+                                        } else if (e.key === 'ArrowDown') {
+                                            e.preventDefault()
+                                            textAreaRefs.current[index + 1]?.focus()
+                                        } else if (e.key === 'ArrowUp') {
+                                            e.preventDefault()
+                                            textAreaRefs.current[index - 1]?.focus()
+                                        }
+                                    }}
+                                    rows={1}
+                                    className="w-full font-mono text-sm border px-1 py-0.5 rounded resize-none overflow-hidden"
+                                />
                             </td>
                             <td className="p-2">
                                 {isComment ? 'Đang tắt' : 'Đang bật'}
                             </td>
                             <td className="p-2">
-                                <Button
-                                    variant={isComment ? 'outline' : 'destructive'}
-                                    size="sm"
-                                    onClick={() => toggleLine(index)}
-                                >
-                                    {isComment ? 'Bật' : 'Tắt'}
-                                </Button>
+                                <Switch
+                                    checked={!isComment}
+                                    onCheckedChange={() => toggleLine(index)}
+                                />
                             </td>
                         </tr>
                     )
@@ -218,26 +207,26 @@ export default function CrontabEditor() {
             <div className="mt-6">
                 <Button onClick={handleSave}>💾 Lưu toàn bộ crontab</Button>
             </div>
-            <div className="flex gap-2 mb-2">
-                <select
-                    className="border px-3 py-2 rounded"
+            <div className="flex flex-col gap-2 mb-6">
+                <textarea
+                    className="w-full p-2 border rounded font-mono text-sm"
+                    rows={3}
                     value={command}
                     onChange={(e) => setCommand(e.target.value)}
-                >
-                    <option value="">-- Chọn lệnh --</option>
-                    {allowedCommandList.map(cmd => (
-                        <option key={cmd.key} value={cmd.key}>{cmd.label}</option>
-                    ))}
-                </select>
-                <Button onClick={handleRun} disabled={!command}>Chạy</Button>
+                    placeholder="Nhập lệnh shell được phép chạy ( status_cron, show_crontab, cronlog_tail)"
+                />
+                <Button onClick={handleRun} disabled={!command.trim()}>
+                    🚀 Chạy lệnh
+                </Button>
+
                 {commandLogs.length > 0 && (
                     <div
                         className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
-                        onClick={() => setCommandLogs([])} // click nền sẽ đóng modal
+                        onClick={() => setCommandLogs([])}
                     >
                         <div
                             className="bg-white max-h-[80vh] w-full max-w-2xl overflow-auto rounded-xl p-6 shadow-xl space-y-4 relative"
-                            onClick={(e) => e.stopPropagation()} // chặn click bên trong modal làm đóng
+                            onClick={(e) => e.stopPropagation()}
                         >
                             {commandLogs.map((log, idx) => (
                                 <div key={idx} className="bg-gray-100 p-3 rounded text-sm shadow-sm border">
